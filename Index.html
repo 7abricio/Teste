@@ -1,0 +1,1364 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { 
+  Heart, Sun, Moon, Coffee, Activity, Pill, 
+  Smile, Frown, Meh, Star, Calendar, BarChart3, 
+  Home, Plus, Check, Bell, X, Flame, Clock,
+  ChevronLeft, ChevronRight, CalendarDays, Briefcase,
+  User, Mail, Lock, LogOut, Download
+} from 'lucide-react';
+
+// --- SISTEMA DE CORES (CLARO / ESCURO) ---
+const getThemeColors = (isDark) => ({
+  bg: isDark ? 'bg-[#1C1A19]' : 'bg-[#F9F6F0]',
+  card: isDark ? 'bg-[#282624]' : 'bg-white',
+  surface: isDark ? 'bg-[#32302D]' : 'bg-stone-50',
+  surfaceHover: isDark ? 'hover:bg-[#3D3A36]' : 'hover:bg-stone-100',
+  surfaceAlt: isDark ? 'bg-[#3D3A36]' : 'bg-stone-100',
+  
+  text: isDark ? 'text-[#D6D0C4]' : 'text-[#5C544E]',
+  textStrong: isDark ? 'text-[#F0EBE1]' : 'text-stone-700',
+  textMuted: isDark ? 'text-[#A39D93]' : 'text-stone-500',
+  textLight: isDark ? 'text-[#8A847A]' : 'text-[#9A8F85]',
+  iconMuted: isDark ? 'text-[#5A5550]' : 'text-stone-300',
+  
+  primary: isDark ? 'bg-[#384A41]' : 'bg-[#D2E0D9]',
+  primaryText: isDark ? 'text-[#A5C2B3]' : 'text-[#4A6B5D]',
+  
+  accent: isDark ? 'bg-[#5C3C3A]' : 'bg-[#F3D8D6]',
+  accentText: isDark ? 'text-[#DEAAA7]' : 'text-[#9C5A56]',
+  
+  yellow: isDark ? 'bg-[#4A3D1A]' : 'bg-[#FDF3D8]',
+  yellowText: isDark ? 'text-[#E0BE63]' : 'text-[#B08922]',
+  
+  blue: isDark ? 'bg-[#2C3E4F]' : 'bg-[#D6E4F0]',
+  blueText: isDark ? 'text-[#9CB8D4]' : 'text-[#4A6984]',
+  
+  purple: isDark ? 'bg-[#3D2C4A]' : 'bg-[#E5D9F2]',
+  purpleText: isDark ? 'text-[#BCA3D4]' : 'text-[#7A5C8A]',
+  
+  border: isDark ? 'border-[#3D3A36]' : 'border-[#EAE3D9]',
+  bottomNav: isDark ? 'bg-[#282624]/90 border-[#3D3A36]' : 'bg-white/80 border-[#EAE3D9]',
+  
+  input: isDark ? 'bg-[#1C1A19] text-[#D6D0C4]' : 'bg-white text-stone-700',
+  translucent: isDark ? 'bg-black/20' : 'bg-white/60',
+  translucentStrong: isDark ? 'bg-black/40' : 'bg-white/70',
+  
+  indigoCard: isDark ? 'bg-indigo-900/20 border-indigo-900/50' : 'bg-indigo-50/30 border-indigo-100',
+  indigoText: isDark ? 'text-indigo-300' : 'text-indigo-900',
+  
+  blueCard: isDark ? 'bg-blue-900/20 border-blue-900/50' : 'bg-blue-50/30 border-blue-100',
+  blueTextAlt: isDark ? 'text-blue-300' : 'text-blue-900',
+  
+  purpleCard: isDark ? 'bg-purple-900/20 border-purple-900/50' : 'bg-[#E5D9F2] bg-opacity-30 border-purple-100',
+  
+  notification: isDark ? 'bg-[#282624]/95 border-[#3D3A36]' : 'bg-white/95 border-stone-200',
+});
+
+// --- DADOS E UTILITÁRIOS ---
+const MOODS = [
+  { id: 'awful', icon: <Frown size={28} />, color: 'text-red-400', label: 'Péssimo' },
+  { id: 'bad', icon: <Meh size={28} />, color: 'text-orange-400', label: 'Triste' },
+  { id: 'ok', icon: <Smile size={28} />, color: 'text-yellow-500', label: 'Ok' },
+  { id: 'good', icon: <Heart size={28} />, color: 'text-green-400', label: 'Bem' },
+  { id: 'great', icon: <Star size={28} />, color: 'text-pink-400', label: 'Ótimo' },
+];
+
+const SLEEP_QUALITIES = [
+  { id: 'bad', label: '🥱 Mau', val: 1 },
+  { id: 'ok', label: '😌 Ok', val: 2 },
+  { id: 'good', label: '😴 Bom', val: 3 },
+  { id: 'great', label: '🤩 Perfeito', val: 4 },
+];
+
+const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+const MONTHS = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+
+const getTodayStr = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+const formatTime = (date) => {
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+};
+
+// Gerador de dados falsos APENAS para a conta de teste
+const generateMockData = () => {
+  const data = {};
+  const today = new Date();
+  for (let i = 30; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    
+    if (Math.random() < 0.1 && i !== 0) continue;
+
+    data[dateStr] = {
+      moods: [
+        { time: '09:00', mood: MOODS[Math.floor(Math.random() * 5)].id },
+        { time: '15:00', mood: MOODS[Math.floor(Math.random() * 5)].id }
+      ],
+      sleep: { hours: Math.floor(Math.random() * 4) + 5, quality: SLEEP_QUALITIES[Math.floor(Math.random() * 4)].id },
+      meds: { '1': Math.random() > 0.2, '2': Math.random() > 0.4 }, 
+      exercises: Math.random() > 0.5 ? [{ type: 'Caminhada', duration: 30, calories: 150 }] : [],
+      hobbies: Math.random() > 0.3 ? [{ type: 'Leitura', duration: 45 }] : [],
+      work: Math.random() > 0.4 ? { entry: '08:00', exit: '17:00', mood: MOODS[Math.floor(Math.random() * 5)].id } : null,
+    };
+  }
+  return data;
+};
+
+// Conta pré-cadastrada para testar estatísticas
+const INITIAL_USERS_DB = {
+  'teste@teste.com': {
+    password: '123',
+    name: 'Visitante Teste',
+    logs: generateMockData(),
+    medications: [
+      { id: '1', name: 'Vitamina C', time: '09:00' },
+      { id: '2', name: 'Anti-alérgico', time: '20:00' }
+    ]
+  }
+};
+
+// --- COMPONENTES MENORES ---
+const Button = ({ children, onClick, variant = 'primary', className = '', active = false, colors }) => {
+  const variants = {
+    primary: `${colors.primary} ${colors.primaryText} hover:brightness-110`,
+    accent: `${colors.accent} ${colors.accentText} hover:brightness-110`,
+    purple: `${colors.purple} ${colors.purpleText} hover:brightness-110`,
+    blue: `${colors.blue} ${colors.blueText} hover:brightness-110`,
+    outline: `border-2 ${colors.border} ${colors.text} ${colors.surfaceHover}`,
+    ghost: `${colors.surfaceHover} ${colors.text}`,
+  };
+  const activeClass = active ? `ring-2 ring-offset-2 ring-[#4A6B5D]` : '';
+  return (
+    <button onClick={onClick} className={`px-4 py-2 rounded-2xl font-medium transition-all duration-200 flex items-center justify-center gap-2 ${variants[variant]} ${activeClass} ${className}`}>
+      {children}
+    </button>
+  );
+};
+
+const Card = ({ children, className = '', colors }) => (
+  <div className={`${colors.card} rounded-3xl p-6 shadow-sm border ${colors.border} transition-colors duration-300 ${className}`}>
+    {children}
+  </div>
+);
+
+// --- APP PRINCIPAL ---
+export default function App() {
+  // Configuração PWA Dinâmica
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  
+  useEffect(() => {
+    // 1. Injetar Manifest Dinâmico
+    const svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%234A6B5D"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>`;
+    const iconDataUrl = `data:image/svg+xml;charset=utf-8,${svgIcon}`;
+
+    const manifest = {
+      name: "Comfy Life",
+      short_name: "Comfy",
+      description: "O seu espaço seguro e aconchegante para registar os seus dias.",
+      start_url: "/",
+      display: "standalone",
+      background_color: "#F9F6F0",
+      theme_color: "#D2E0D9",
+      icons: [
+        { src: iconDataUrl, sizes: "192x192 512x512", type: "image/svg+xml", purpose: "any maskable" }
+      ]
+    };
+    const manifestBlob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
+    const manifestUrl = URL.createObjectURL(manifestBlob);
+    
+    let linkManifest = document.querySelector('link[rel="manifest"]');
+    if (!linkManifest) {
+      linkManifest = document.createElement('link');
+      linkManifest.rel = 'manifest';
+      document.head.appendChild(linkManifest);
+    }
+    linkManifest.href = manifestUrl;
+
+    // 2. Injetar Meta Tags essenciais PWA
+    const metaTheme = document.createElement('meta');
+    metaTheme.name = 'theme-color';
+    metaTheme.content = '#D2E0D9';
+    document.head.appendChild(metaTheme);
+
+    const metaApple = document.createElement('meta');
+    metaApple.name = 'apple-mobile-web-app-capable';
+    metaApple.content = 'yes';
+    document.head.appendChild(metaApple);
+
+    // 3. Service Worker Dinâmico (Offline Cache)
+    if ('serviceWorker' in navigator) {
+      const swCode = `
+        const CACHE_NAME = 'comfy-life-v1';
+        self.addEventListener('install', (e) => {
+          self.skipWaiting();
+        });
+        self.addEventListener('fetch', (e) => {
+          e.respondWith(
+            caches.match(e.request).then((res) => res || fetch(e.request))
+          );
+        });
+      `;
+      const blob = new Blob([swCode], { type: 'text/javascript' });
+      const swUrl = URL.createObjectURL(blob);
+      navigator.serviceWorker.register(swUrl).catch(err => console.log('SW falhou (Normal em alguns iFrames)', err));
+    }
+
+    // 4. Capturar evento de instalação (PWA)
+    const handleBIP = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handleBIP);
+
+    return () => window.removeEventListener('beforeinstallprompt', handleBIP);
+  }, []);
+
+  const handleInstallApp = () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then((choiceResult) => {
+        if (choiceResult.outcome === 'accepted') {
+          console.log('Utilizador aceitou instalar');
+        }
+        setDeferredPrompt(null);
+      });
+    }
+  };
+
+  // Configuração de Tema Escuro/Claro
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  const colors = useMemo(() => getThemeColors(isDarkMode), [isDarkMode]);
+  const toggleTheme = () => setIsDarkMode(!isDarkMode);
+
+  // Sistema de Utilizadores (Banco de Dados Local)
+  const [usersDb, setUsersDb] = useState(INITIAL_USERS_DB);
+  const [currentUserEmail, setCurrentUserEmail] = useState(null);
+
+  // Estados de Autenticação
+  const [authStep, setAuthStep] = useState('auth'); // 'auth', 'onboarding', 'app'
+  const [isLoginFlow, setIsLoginFlow] = useState(true);
+  const [userName, setUserName] = useState('');
+  const [emailInput, setEmailInput] = useState('');
+  const [passwordInput, setPasswordInput] = useState('');
+
+  // Estados da Aplicação
+  const [activeTab, setActiveTab] = useState('home');
+  const [currentDateStr, setCurrentDateStr] = useState(getTodayStr());
+  
+  // Estado Dinâmico do Utilizador Atual (Zera quando sai)
+  const [logs, setLogs] = useState({});
+  const [medications, setMedications] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+
+  // Estados dos formulários
+  const [exerciseInput, setExerciseInput] = useState({ type: '', duration: '', calories: '' });
+  const [hobbyInput, setHobbyInput] = useState({ type: '', duration: '' });
+  const [workInput, setWorkInput] = useState({ entry: '', exit: '', mood: 'ok' });
+  const [isAddingMed, setIsAddingMed] = useState(false);
+  const [newMedInput, setNewMedInput] = useState({ name: '', time: '08:00' });
+  
+  // Estado das abas e calendário
+  const [statsPeriod, setStatsPeriod] = useState(7);
+  const [viewingMonth, setViewingMonth] = useState(new Date());
+  const [selectedHistoryDate, setSelectedHistoryDate] = useState(getTodayStr());
+
+  // Sincronizar logs e medicações com o banco de dados (Salva automaticamente as alterações)
+  useEffect(() => {
+    if (currentUserEmail && authStep === 'app') {
+      setUsersDb(prev => ({
+        ...prev,
+        [currentUserEmail]: {
+          ...prev[currentUserEmail],
+          logs,
+          medications
+        }
+      }));
+    }
+  }, [logs, medications, currentUserEmail, authStep]);
+
+  // Pegar os dados de hoje
+  const todayLog = logs[currentDateStr] || { moods: [], sleep: { hours: 0, quality: '' }, meds: {}, exercises: [], hobbies: [], work: null };
+
+  const updateTodayLog = (key, value) => {
+    setLogs(prev => ({
+      ...prev,
+      [currentDateStr]: {
+        ...(prev[currentDateStr] || { moods: [], sleep: { hours: 0, quality: '' }, meds: {}, exercises: [], hobbies: [], work: null }),
+        [key]: value
+      }
+    }));
+  };
+
+  // Lógica de Notificações
+  useEffect(() => {
+    const checkMeds = setInterval(() => {
+      if (authStep !== 'app') return; // Só notifica se estiver autenticado
+      const now = new Date();
+      const timeStr = formatTime(now);
+      medications.forEach(med => {
+        if (med.time === timeStr) {
+          const taken = logs[currentDateStr]?.meds?.[med.id];
+          if (!taken) {
+            addNotification(`Hora de tomar: ${med.name}! 💊`);
+          }
+        }
+      });
+    }, 60000);
+    return () => clearInterval(checkMeds);
+  }, [medications, logs, currentDateStr, authStep]);
+
+  // Lógica de Virada de Dia Automática (00:00)
+  useEffect(() => {
+    const checkMidnight = setInterval(() => {
+      const newDateStr = getTodayStr();
+      if (newDateStr !== currentDateStr) {
+        setCurrentDateStr(newDateStr); // Atualiza tudo para o novo dia magicamente!
+      }
+    }, 60000); // Checa a cada minuto
+    return () => clearInterval(checkMidnight);
+  }, [currentDateStr]);
+
+  const addNotification = (msg) => {
+    const id = Date.now();
+    setNotifications(prev => [...prev, { id, msg }]);
+    setTimeout(() => {
+      setNotifications(prev => prev.filter(n => n.id !== id));
+    }, 5000);
+  };
+
+  // --- AUTENTICAÇÃO ---
+  const handleAuthSubmit = () => {
+    if (!emailInput || !passwordInput) {
+      addNotification("Preencha o e-mail e a palavra-passe!");
+      return;
+    }
+
+    // Validação de E-mail usando Regex
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(emailInput)) {
+      addNotification("Por favor, insira um e-mail válido!");
+      return;
+    }
+
+    const emailKey = emailInput.toLowerCase();
+
+    if (isLoginFlow) {
+      // LOGIN
+      const user = usersDb[emailKey];
+      if (user && user.password === passwordInput) {
+        setCurrentUserEmail(emailKey);
+        setUserName(user.name);
+        setLogs(user.logs || {});
+        setMedications(user.medications || []);
+        setAuthStep('app');
+        setActiveTab('home');
+        addNotification(`Bem-vindo(a) de volta, ${user.name}!`);
+      } else {
+        addNotification("E-mail ou palavra-passe incorretos!");
+      }
+    } else {
+      // CRIAR CONTA
+      if (usersDb[emailKey]) {
+        addNotification("Este e-mail já está registado!");
+      } else {
+        // Zera estados para um novo utilizador
+        setLogs({});
+        setMedications([]);
+        setAuthStep('onboarding');
+      }
+    }
+  };
+
+  const handleOnboardingSubmit = () => {
+    if (!userName.trim()) {
+      addNotification("Por favor, digite o seu nome!");
+      return;
+    }
+    const emailKey = emailInput.toLowerCase();
+    
+    // Salva o novo utilizador no "Banco de Dados"
+    setUsersDb(prev => ({
+      ...prev,
+      [emailKey]: {
+        password: passwordInput,
+        name: userName.trim(),
+        logs: {}, // Zerado
+        medications: [] // Zerado
+      }
+    }));
+    
+    setCurrentUserEmail(emailKey);
+    setAuthStep('app');
+    setActiveTab('home');
+    addNotification(`Conta criada! Seja bem-vindo(a), ${userName.trim()}!`);
+  };
+
+  const handleLogout = () => {
+    setAuthStep('auth');
+    setCurrentUserEmail(null);
+    setUserName('');
+    setEmailInput('');
+    setPasswordInput('');
+    setLogs({});
+    setMedications([]);
+    addNotification("Saiu da sua conta em segurança.");
+  };
+
+  // --- HANDLERS (Diários) ---
+  const handleAddMood = (moodId) => {
+    const newMood = { time: formatTime(new Date()), mood: moodId };
+    updateTodayLog('moods', [...todayLog.moods, newMood]);
+  };
+
+  const handleSaveSleep = (hours, quality) => {
+    updateTodayLog('sleep', { hours, quality });
+  };
+
+  const handleToggleMed = (medId) => {
+    const currentMeds = { ...(todayLog.meds || {}) };
+    currentMeds[medId] = !currentMeds[medId];
+    updateTodayLog('meds', currentMeds);
+  };
+
+  const handleAddMedication = () => {
+    if (newMedInput.name && newMedInput.time) {
+      setMedications([...medications, { 
+        id: Date.now().toString(), 
+        name: newMedInput.name, 
+        time: newMedInput.time 
+      }]);
+      setNewMedInput({ name: '', time: '08:00' });
+      setIsAddingMed(false);
+    } else {
+      addNotification("Preencha o nome e a hora do remédio!");
+    }
+  };
+
+  const handleRemoveMedication = (idToRemove) => {
+    setMedications(medications.filter(med => med.id !== idToRemove));
+  };
+
+  const handleSaveWork = () => {
+    if (workInput.entry && workInput.exit) {
+      updateTodayLog('work', { ...workInput });
+      setWorkInput({ entry: '', exit: '', mood: 'ok' });
+    } else {
+      addNotification('Preencha a hora de entrada e de saída!');
+    }
+  };
+
+  const handleRemoveWork = () => {
+    updateTodayLog('work', null);
+  };
+
+  const handleAddExercise = () => {
+    if (exerciseInput.type && exerciseInput.duration) {
+      updateTodayLog('exercises', [...todayLog.exercises, { 
+        type: exerciseInput.type, 
+        duration: parseInt(exerciseInput.duration), 
+        calories: parseInt(exerciseInput.calories || 0) 
+      }]);
+      setExerciseInput({ type: '', duration: '', calories: '' });
+    }
+  };
+
+  const handleRemoveExercise = (indexToRemove) => {
+    const updatedExercises = todayLog.exercises.filter((_, index) => index !== indexToRemove);
+    updateTodayLog('exercises', updatedExercises);
+  };
+
+  const handleAddHobby = () => {
+    if (hobbyInput.type && hobbyInput.duration) {
+      updateTodayLog('hobbies', [...todayLog.hobbies, { 
+        type: hobbyInput.type, 
+        duration: parseInt(hobbyInput.duration) 
+      }]);
+      setHobbyInput({ type: '', duration: '' });
+    }
+  };
+
+  const handleRemoveHobby = (indexToRemove) => {
+    const updatedHobbies = todayLog.hobbies.filter((_, index) => index !== indexToRemove);
+    updateTodayLog('hobbies', updatedHobbies);
+  };
+
+  // Calcular estatísticas de forma otimizada
+  const stats = useMemo(() => {
+    const today = new Date();
+    let totalSleep = 0; let sleepDays = 0;
+    let medTaken = 0; let medTotal = 0;
+    let totalExMins = 0; let totalExCals = 0;
+    let totalHobbyMins = 0;
+    let totalWorkMins = 0;
+    const moodCounts = {};
+
+    for (let i = 0; i < statsPeriod; i++) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const dayLog = logs[dateStr];
+
+      if (dayLog) {
+        if (dayLog.sleep?.hours) { totalSleep += dayLog.sleep.hours; sleepDays++; }
+        medications.forEach(med => {
+          medTotal++;
+          if (dayLog.meds?.[med.id]) medTaken++;
+        });
+        dayLog.exercises?.forEach(ex => { totalExMins += ex.duration; totalExCals += (ex.calories || 0); });
+        dayLog.hobbies?.forEach(hb => { totalHobbyMins += hb.duration; });
+        
+        if (dayLog.work && dayLog.work.entry && dayLog.work.exit) {
+          const [eH, eM] = dayLog.work.entry.split(':').map(Number);
+          const [xH, xM] = dayLog.work.exit.split(':').map(Number);
+          let mins = (xH * 60 + xM) - (eH * 60 + eM);
+          if (mins < 0) mins += 24 * 60; // Caso vire a noite
+          totalWorkMins += mins;
+        }
+
+        dayLog.moods?.forEach(m => { moodCounts[m.mood] = (moodCounts[m.mood] || 0) + 1; });
+      }
+    }
+
+    const avgSleep = sleepDays ? (totalSleep / sleepDays).toFixed(1) : 0;
+    const medAdherence = medTotal ? Math.round((medTaken / medTotal) * 100) : 0;
+    const topMoodId = Object.keys(moodCounts).sort((a,b) => moodCounts[b] - moodCounts[a])[0];
+    const topMood = MOODS.find(m => m.id === topMoodId) || MOODS[2];
+
+    return { avgSleep, medAdherence, totalExMins, totalExCals, totalHobbyMins, totalWorkMins, topMood };
+  }, [statsPeriod, logs, medications]);
+
+  // Funções Utilitárias do Calendário
+  const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
+  const getFirstDayOfMonth = (year, month) => new Date(year, month, 1).getDay();
+  const handlePrevMonth = () => setViewingMonth(new Date(viewingMonth.getFullYear(), viewingMonth.getMonth() - 1, 1));
+  const handleNextMonth = () => setViewingMonth(new Date(viewingMonth.getFullYear(), viewingMonth.getMonth() + 1, 1));
+
+  const currentYear = viewingMonth.getFullYear();
+  const currentMonthIndex = viewingMonth.getMonth();
+  const daysInMonth = getDaysInMonth(currentYear, currentMonthIndex);
+  const firstDayOfWeek = getFirstDayOfMonth(currentYear, currentMonthIndex);
+  const blanks = Array.from({ length: firstDayOfWeek }, (_, i) => i);
+  const monthDays = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+
+  // --- TELAS DE AUTENTICAÇÃO ---
+  if (authStep === 'auth') {
+    return (
+      <div className={`min-h-screen ${colors.bg} font-sans selection:bg-rose-200 flex items-center justify-center p-4 transition-colors duration-500`}>
+        <div className={`max-w-md w-full relative ${colors.bg} shadow-2xl overflow-hidden flex flex-col rounded-[2.5rem] border ${colors.border} transition-colors duration-500`}>
+          <div className="p-8 flex flex-col items-center text-center space-y-6">
+            
+            {/* Top Bar Login */}
+            <div className="flex w-full justify-between items-center absolute top-6 px-6">
+              <button 
+                onClick={toggleTheme}
+                className={`${colors.yellow} p-3 rounded-full shadow-sm hover:scale-105 transition-transform cursor-pointer`}
+                title="Alternar Modo Claro/Escuro"
+              >
+                {isDarkMode ? <Moon className={colors.yellowText} size={20} /> : <Sun className={colors.yellowText} size={20} />}
+              </button>
+              
+              {/* Botão PWA na tela de Login */}
+              {deferredPrompt && (
+                <button 
+                  onClick={handleInstallApp}
+                  className={`${colors.primary} ${colors.primaryText} p-3 rounded-full shadow-sm hover:scale-105 transition-transform flex items-center gap-2 text-xs font-bold`}
+                  title="Instalar Aplicação"
+                >
+                  <Download size={16} /> Instalar
+                </button>
+              )}
+            </div>
+
+            <div className="mt-12">
+              <Heart className={`${colors.accentText} mx-auto mb-4`} size={48} />
+              <h1 className={`text-3xl font-bold ${colors.text} font-serif`}>Comfy Life</h1>
+              <p className={`text-sm ${colors.textLight} mt-2`}>O seu espaço seguro e aconchegante para registar os seus dias.</p>
+            </div>
+
+            <div className="w-full space-y-4 mt-8">
+              <div className={`flex items-center ${colors.card} px-4 py-3 rounded-2xl shadow-sm border ${colors.border}`}>
+                <Mail size={20} className={colors.textLight} />
+                <input 
+                  type="email" placeholder="O seu e-mail" 
+                  value={emailInput} onChange={e => setEmailInput(e.target.value)}
+                  className={`w-full ml-3 border-none outline-none text-sm bg-transparent ${colors.textStrong}`}
+                />
+              </div>
+              <div className={`flex items-center ${colors.card} px-4 py-3 rounded-2xl shadow-sm border ${colors.border}`}>
+                <Lock size={20} className={colors.textLight} />
+                <input 
+                  type="password" placeholder="A sua palavra-passe" 
+                  value={passwordInput} onChange={e => setPasswordInput(e.target.value)}
+                  className={`w-full ml-3 border-none outline-none text-sm bg-transparent ${colors.textStrong}`}
+                />
+              </div>
+            </div>
+
+            <Button colors={colors} variant="primary" onClick={handleAuthSubmit} className="w-full py-3 mt-4 text-lg">
+              {isLoginFlow ? 'Entrar' : 'Criar Conta'}
+            </Button>
+
+            <button 
+              onClick={() => setIsLoginFlow(!isLoginFlow)}
+              className={`text-sm font-medium ${colors.textLight} hover:${colors.primaryText} transition-colors mt-4`}
+            >
+              {isLoginFlow ? 'Não tem uma conta? Cadastre-se' : 'Já tem uma conta? Iniciar Sessão'}
+            </button>
+
+            {isLoginFlow && (
+              <p className={`text-xs ${colors.textMuted} mt-6 opacity-70`}>
+                Dica: teste@teste.com / 123 para ver dados pré-prontos.
+              </p>
+            )}
+          </div>
+        </div>
+        
+        {/* Notificações */}
+        <div className="absolute top-4 left-0 right-0 px-4 z-50 flex flex-col gap-2 pointer-events-none max-w-md mx-auto">
+          {notifications.map(n => (
+            <div key={n.id} className={`${colors.notification} backdrop-blur-md shadow-lg p-4 rounded-2xl flex items-center justify-between animate-in slide-in-from-top pointer-events-auto border`}>
+              <div className="flex items-center gap-3">
+                <div className="bg-blue-100 text-blue-600 p-2 rounded-full"><Bell size={18}/></div>
+                <p className={`font-medium ${colors.textStrong}`}>{n.msg}</p>
+              </div>
+              <button onClick={() => setNotifications(prev => prev.filter(x => x.id !== n.id))} className={`${colors.textLight} hover:${colors.text}`}>
+                <X size={18}/>
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (authStep === 'onboarding') {
+    return (
+      <div className={`min-h-screen ${colors.bg} font-sans selection:bg-rose-200 flex items-center justify-center p-4 transition-colors duration-500`}>
+        <div className={`max-w-md w-full relative ${colors.bg} shadow-2xl overflow-hidden flex flex-col rounded-[2.5rem] border ${colors.border} p-8 text-center transition-colors duration-500`}>
+          <div className="flex flex-col items-center space-y-6">
+            <div className={`${colors.primary} p-4 rounded-full shadow-sm mb-2 mt-4`}>
+              <Smile className={colors.primaryText} size={40} />
+            </div>
+            <div>
+              <h1 className={`text-2xl font-bold ${colors.text} font-serif`}>Como podemos tratá-lo(a)?</h1>
+              <p className={`text-sm ${colors.textLight} mt-2`}>A sua conta foi reservada. Queremos que se sinta em casa.</p>
+            </div>
+
+            <div className="w-full mt-8">
+              <div className={`flex items-center ${colors.card} px-4 py-3 rounded-2xl shadow-sm border ${colors.border}`}>
+                <User size={20} className={colors.textLight} />
+                <input 
+                  type="text" placeholder="O seu nome ou alcunha" 
+                  value={userName} onChange={e => setUserName(e.target.value)}
+                  className={`w-full ml-3 border-none outline-none text-sm bg-transparent ${colors.textStrong}`}
+                />
+              </div>
+            </div>
+
+            <Button colors={colors} variant="primary" onClick={handleOnboardingSubmit} className="w-full py-3 mt-6 text-lg">
+              Começar a minha jornada
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`min-h-screen ${colors.bg} font-sans selection:bg-rose-200 transition-colors duration-500`}>
+      <div className={`max-w-md mx-auto min-h-screen relative ${colors.bg} shadow-2xl overflow-hidden flex flex-col transition-colors duration-500`}>
+        
+        {/* Área de Conteúdo Rolável */}
+        <div className="flex-1 overflow-y-auto p-6 scrollbar-hide pb-28">
+          
+          {/* ================= ABA HOME ================= */}
+          {activeTab === 'home' && (
+            <div className="space-y-6 animate-in fade-in duration-300">
+              <div className="flex justify-between items-end px-2">
+                <div>
+                  <h2 className={`text-sm font-medium ${colors.textLight} uppercase tracking-wider mb-1`}>
+                    {new Date().toLocaleDateString('pt-BR', { weekday: 'long', month: 'long', day: 'numeric' })}
+                  </h2>
+                  <h1 className={`text-3xl font-bold ${colors.text} font-serif`}>Olá, {userName}! Como está?</h1>
+                </div>
+                <div className="flex items-center gap-2">
+                  {/* Botão de Instalar App PWA */}
+                  {deferredPrompt && (
+                    <button 
+                      onClick={handleInstallApp}
+                      className={`${colors.primary} ${colors.primaryText} p-3 rounded-full shadow-sm hover:scale-105 transition-transform cursor-pointer`}
+                      title="Instalar Aplicação no Telemóvel/PC"
+                    >
+                      <Download size={24} />
+                    </button>
+                  )}
+
+                  <button 
+                    onClick={toggleTheme}
+                    className={`${colors.yellow} p-3 rounded-full shadow-sm hover:scale-105 transition-transform cursor-pointer`}
+                    title="Alternar tema"
+                  >
+                    {isDarkMode ? <Moon className={colors.yellowText} size={24} /> : <Sun className={colors.yellowText} size={24} />}
+                  </button>
+                  <button 
+                    onClick={handleLogout}
+                    className={`${colors.card} border ${colors.border} p-3 rounded-full shadow-sm hover:scale-105 transition-transform cursor-pointer text-red-400`}
+                    title="Sair da conta"
+                  >
+                    <LogOut size={24} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Humor */}
+              <Card colors={colors}>
+                <div className="flex items-center gap-2 mb-4">
+                  <Heart className={colors.accentText} size={20} />
+                  <h3 className={`font-semibold ${colors.text}`}>O meu Humor</h3>
+                </div>
+                <div className={`flex justify-between items-center ${colors.surface} p-4 rounded-2xl mb-4 transition-colors`}>
+                  {MOODS.map(m => (
+                    <button 
+                      key={m.id} 
+                      onClick={() => handleAddMood(m.id)}
+                      className={`hover:scale-110 transition-transform ${m.color}`}
+                    >
+                      {m.icon}
+                    </button>
+                  ))}
+                </div>
+                {todayLog.moods.length > 0 && (
+                  <div className="space-y-2">
+                    <p className={`text-xs ${colors.textLight}`}>Registos de hoje:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {todayLog.moods.map((m, i) => {
+                        const moodData = MOODS.find(x => x.id === m.mood);
+                        return (
+                          <div key={i} className={`flex items-center gap-1 ${colors.surfaceAlt} px-3 py-1.5 rounded-full text-sm`}>
+                            <span className={moodData.color}>{moodData.icon}</span>
+                            <span className={`font-medium ${colors.textLight}`}>{m.time}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </Card>
+
+              {/* Remédios */}
+              <Card colors={colors}>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <Pill className={colors.blueText} size={20} />
+                    <h3 className={`font-semibold ${colors.text}`}>Medicação</h3>
+                  </div>
+                  <button 
+                    onClick={() => setIsAddingMed(!isAddingMed)}
+                    className={`p-1.5 rounded-full ${colors.blue} ${colors.blueText} hover:brightness-95 transition-colors`}
+                    title="Adicionar novo remédio"
+                  >
+                    {isAddingMed ? <X size={18}/> : <Plus size={18}/>}
+                  </button>
+                </div>
+
+                {isAddingMed && (
+                  <div className={`${colors.blueCard} p-4 rounded-2xl mb-4 space-y-3 animate-in fade-in slide-in-from-top-2 border`}>
+                    <input 
+                      placeholder="Nome do remédio" 
+                      value={newMedInput.name} 
+                      onChange={e => setNewMedInput({...newMedInput, name: e.target.value})}
+                      className={`w-full px-4 py-2 rounded-xl border-none focus:ring-2 ring-blue-300 outline-none text-sm ${colors.input}`}
+                    />
+                    <div className="flex items-center gap-3">
+                      <label className={`text-xs font-medium ${colors.textMuted}`}>Horário:</label>
+                      <input 
+                        type="time" 
+                        value={newMedInput.time} 
+                        onChange={e => setNewMedInput({...newMedInput, time: e.target.value})}
+                        className={`flex-1 px-4 py-2 rounded-xl border-none focus:ring-2 ring-blue-300 outline-none text-sm ${colors.input}`}
+                      />
+                    </div>
+                    <Button colors={colors} variant="blue" onClick={handleAddMedication} className="w-full py-2">Salvar Remédio</Button>
+                  </div>
+                )}
+
+                <div className="space-y-3">
+                  {medications.length === 0 ? (
+                    <p className={`text-sm ${colors.textLight} text-center py-2`}>Nenhum remédio registado.</p>
+                  ) : (
+                    medications.map(med => {
+                      const isTaken = todayLog.meds?.[med.id];
+                      return (
+                        <div key={med.id} className={`flex items-center justify-between p-4 rounded-2xl border transition-colors ${isTaken ? `${colors.primary} border-transparent` : `${colors.surface} ${colors.border}`}`}>
+                          <div className="flex items-center gap-3">
+                            <div className={`p-2 rounded-full ${isTaken ? `${colors.translucent} ${colors.primaryText}` : `${colors.card} ${colors.iconMuted} shadow-sm`}`}>
+                              <Clock size={16} />
+                            </div>
+                            <div>
+                              <p className={`font-semibold ${isTaken ? colors.primaryText : colors.textStrong}`}>{med.name}</p>
+                              <p className={`text-sm ${isTaken ? colors.primaryText : colors.textLight} opacity-80`}>{med.time}</p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center gap-1">
+                            <button 
+                              onClick={() => handleRemoveMedication(med.id)}
+                              className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${isTaken ? 'text-red-500 opacity-60 hover:opacity-100' : `${colors.iconMuted} hover:text-red-400 hover:bg-red-500/10`}`}
+                              title="Eliminar remédio"
+                            >
+                              <X size={16} />
+                            </button>
+                            <button 
+                              onClick={() => handleToggleMed(med.id)}
+                              className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${isTaken ? `${colors.card} ${colors.primaryText} shadow-sm` : `border-2 ${colors.border} text-transparent hover:border-[#4A6B5D]`}`}
+                            >
+                              <Check size={20} />
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
+              </Card>
+
+              {/* Sono */}
+              <Card colors={colors}>
+                <div className="flex items-center gap-2 mb-4">
+                  <Moon className="text-indigo-400" size={20} />
+                  <h3 className={`font-semibold ${colors.text}`}>Sono</h3>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <label className={`text-sm ${colors.textLight} mb-2 block`}>
+                      Horas dormidas: <span className={`font-bold ${colors.indigoText}`}>{Number(todayLog.sleep?.hours || 0).toFixed(1).replace('.0', '')}h</span>
+                    </label>
+                    <input 
+                      type="range" min="0" max="14" step="0.1"
+                      value={todayLog.sleep?.hours || 0}
+                      onChange={(e) => handleSaveSleep(parseFloat(e.target.value), todayLog.sleep?.quality)}
+                      className="w-full accent-indigo-400"
+                    />
+                  </div>
+                  <div>
+                    <label className={`text-sm ${colors.textLight} mb-2 block`}>Qualidade:</label>
+                    <div className="flex gap-2">
+                      {SLEEP_QUALITIES.map(q => (
+                        <button 
+                          key={q.id}
+                          onClick={() => handleSaveSleep(todayLog.sleep?.hours || 0, q.id)}
+                          className={`flex-1 py-2 rounded-xl text-sm transition-all ${todayLog.sleep?.quality === q.id ? 'bg-indigo-500/20 text-indigo-400 ring-2 ring-indigo-400/50' : `${colors.surface} ${colors.surfaceHover} ${colors.text}`}`}
+                        >
+                          {q.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </Card>
+
+              {/* TRABALHO */}
+              <Card colors={colors} className={`${colors.purple} bg-opacity-20`}>
+                <div className="flex items-center gap-2 mb-4">
+                  <Briefcase className={colors.purpleText} size={20} />
+                  <h3 className={`font-semibold ${colors.text}`}>Trabalho</h3>
+                </div>
+
+                {todayLog.work ? (
+                  <div className={`${colors.translucentStrong} p-4 rounded-xl flex justify-between items-center shadow-sm`}>
+                    <div>
+                      <p className={`text-xs ${colors.textMuted} mb-1`}>Turno registado</p>
+                      <p className={`font-bold ${colors.textStrong}`}>{todayLog.work.entry} às {todayLog.work.exit}</p>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <span className={`${MOODS.find(m => m.id === todayLog.work.mood)?.color} ${colors.card} p-2 rounded-full shadow-sm`}>
+                        {MOODS.find(m => m.id === todayLog.work.mood)?.icon}
+                      </span>
+                      <button 
+                        onClick={handleRemoveWork}
+                        className={`${colors.iconMuted} hover:text-red-400 transition-colors`}
+                        title="Remover trabalho"
+                      >
+                        <X size={20} />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex gap-3">
+                      <div className="flex-1">
+                        <label className={`text-xs font-medium ${colors.textMuted} mb-1 block`}>Entrada</label>
+                        <input 
+                          type="time" 
+                          value={workInput.entry} 
+                          onChange={e => setWorkInput({...workInput, entry: e.target.value})}
+                          className={`w-full px-4 py-2 rounded-xl border-none focus:ring-2 ring-purple-300 outline-none text-sm font-medium ${colors.input}`}
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <label className={`text-xs font-medium ${colors.textMuted} mb-1 block`}>Saída</label>
+                        <input 
+                          type="time" 
+                          value={workInput.exit} 
+                          onChange={e => setWorkInput({...workInput, exit: e.target.value})}
+                          className={`w-full px-4 py-2 rounded-xl border-none focus:ring-2 ring-purple-300 outline-none text-sm font-medium ${colors.input}`}
+                        />
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label className={`text-xs font-medium ${colors.textMuted} mb-2 block`}>Humor no expediente</label>
+                      <div className={`flex justify-between items-center ${colors.card} p-2 rounded-xl`}>
+                        {MOODS.map(m => (
+                          <button 
+                            key={m.id} 
+                            onClick={() => setWorkInput({...workInput, mood: m.id})}
+                            className={`p-1.5 rounded-full transition-all ${workInput.mood === m.id ? `${colors.surface} scale-110 shadow-sm ring-1 ring-stone-500/30 ${m.color}` : 'opacity-40 hover:opacity-100 grayscale'}`}
+                          >
+                            {React.cloneElement(m.icon, { size: 24 })}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <Button colors={colors} variant="purple" onClick={handleSaveWork} className="w-full py-2">Salvar Expediente</Button>
+                  </div>
+                )}
+              </Card>
+
+              {/* Exercício e Hobby */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Card colors={colors} className={`${colors.accent} bg-opacity-20`}>
+                  <div className="flex items-center gap-2 mb-4">
+                    <Activity className={colors.accentText} size={20} />
+                    <h3 className={`font-semibold ${colors.text}`}>Exercício</h3>
+                  </div>
+                  <div className="space-y-3 mb-4">
+                    <input 
+                      placeholder="O que fez?" 
+                      value={exerciseInput.type} 
+                      onChange={e => setExerciseInput({...exerciseInput, type: e.target.value})}
+                      className={`w-full px-4 py-2 rounded-xl border-none focus:ring-2 ring-rose-200 outline-none text-sm ${colors.input}`}
+                    />
+                    <div className="flex gap-2">
+                      <input 
+                        type="number" placeholder="Min" 
+                        value={exerciseInput.duration} 
+                        onChange={e => setExerciseInput({...exerciseInput, duration: e.target.value})}
+                        className={`w-1/2 px-4 py-2 rounded-xl border-none focus:ring-2 ring-rose-200 outline-none text-sm ${colors.input}`}
+                      />
+                      <input 
+                        type="number" placeholder="Kcal" 
+                        value={exerciseInput.calories} 
+                        onChange={e => setExerciseInput({...exerciseInput, calories: e.target.value})}
+                        className={`w-1/2 px-4 py-2 rounded-xl border-none focus:ring-2 ring-rose-200 outline-none text-sm ${colors.input}`}
+                      />
+                    </div>
+                    <Button colors={colors} variant="accent" onClick={handleAddExercise} className="w-full py-2">Salvar</Button>
+                  </div>
+                  {todayLog.exercises.length > 0 && (
+                    <div className="space-y-2 mt-4">
+                      {todayLog.exercises.map((ex, i) => (
+                        <div key={i} className={`${colors.translucent} p-3 rounded-xl flex justify-between items-center text-sm shadow-sm`}>
+                          <span className={`font-medium ${colors.textStrong}`}>{ex.type}</span>
+                          <div className={`flex items-center gap-3 ${colors.textMuted}`}>
+                            <span className="flex items-center gap-1"><Clock size={14}/> {ex.duration}m</span>
+                            {ex.calories > 0 && <span className="flex items-center gap-1"><Flame size={14} className="text-orange-400"/> {ex.calories}</span>}
+                            <button onClick={() => handleRemoveExercise(i)} className={`${colors.iconMuted} hover:text-red-400 transition-colors`}>
+                              <X size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </Card>
+
+                <Card colors={colors} className={`${colors.primary} bg-opacity-20`}>
+                  <div className="flex items-center gap-2 mb-4">
+                    <Coffee className={colors.primaryText} size={20} />
+                    <h3 className={`font-semibold ${colors.text}`}>Hobby</h3>
+                  </div>
+                  <div className="space-y-3 mb-4">
+                    <input 
+                      placeholder="Qual hobby?" 
+                      value={hobbyInput.type} 
+                      onChange={e => setHobbyInput({...hobbyInput, type: e.target.value})}
+                      className={`w-full px-4 py-2 rounded-xl border-none focus:ring-2 ring-teal-200 outline-none text-sm ${colors.input}`}
+                    />
+                    <div className="flex gap-2">
+                      <input 
+                        type="number" placeholder="Tempo (min)" 
+                        value={hobbyInput.duration} 
+                        onChange={e => setHobbyInput({...hobbyInput, duration: e.target.value})}
+                        className={`w-full px-4 py-2 rounded-xl border-none focus:ring-2 ring-teal-200 outline-none text-sm ${colors.input}`}
+                      />
+                    </div>
+                    <Button colors={colors} variant="primary" onClick={handleAddHobby} className="w-full py-2">Salvar</Button>
+                  </div>
+                  {todayLog.hobbies.length > 0 && (
+                    <div className="space-y-2 mt-4">
+                      {todayLog.hobbies.map((hb, i) => (
+                        <div key={i} className={`${colors.translucent} p-3 rounded-xl flex justify-between items-center text-sm shadow-sm`}>
+                          <span className={`font-medium ${colors.textStrong}`}>{hb.type}</span>
+                          <div className={`flex items-center gap-3 ${colors.textMuted}`}>
+                            <span className="flex items-center gap-1"><Clock size={14}/> {hb.duration}m</span>
+                            <button onClick={() => handleRemoveHobby(i)} className={`${colors.iconMuted} hover:text-red-400 transition-colors`}>
+                              <X size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </Card>
+              </div>
+            </div>
+          )}
+
+          {/* ================= ABA ESTATÍSTICAS ================= */}
+          {activeTab === 'stats' && (
+            <div className="space-y-6 animate-in fade-in duration-300">
+              <h1 className={`text-3xl font-bold ${colors.text} font-serif mb-6`}>Estatísticas</h1>
+              
+              <div className="flex overflow-x-auto gap-2 pb-2 scrollbar-hide">
+                {[1, 3, 7, 15, 30].map(days => (
+                  <button 
+                    key={days}
+                    onClick={() => setStatsPeriod(days)}
+                    className={`whitespace-nowrap px-5 py-2 rounded-full text-sm font-medium transition-all ${statsPeriod === days ? `${colors.primary} ${colors.primaryText} shadow-sm` : `${colors.card} ${colors.textLight} ${colors.surfaceHover} border ${colors.border}`}`}
+                  >
+                    {days === 1 ? 'Hoje' : `${days} Dias`}
+                  </button>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <Card colors={colors} className="col-span-2 flex items-center justify-between p-6">
+                  <div>
+                    <p className={`text-sm ${colors.textLight} mb-1`}>Humor Predominante</p>
+                    <h3 className={`text-xl font-bold ${colors.textStrong}`}>
+                      {statsPeriod === 1 ? 'Hoje' : `Nos últimos ${statsPeriod} dias`}
+                    </h3>
+                  </div>
+                  <div className={`p-4 rounded-full ${colors.yellow} bg-opacity-30`}>
+                    {React.cloneElement(stats.topMood.icon, { size: 40 })}
+                  </div>
+                </Card>
+
+                <Card colors={colors} className="flex flex-col justify-center items-center text-center p-6 gap-2">
+                  <Pill className={colors.blueText} size={28} />
+                  <p className={`text-sm ${colors.textLight}`}>Adesão aos Remédios</p>
+                  <div className="relative w-20 h-20 flex items-center justify-center mt-2">
+                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                      <path className={`${colors.surfaceAlt}`} strokeWidth="4" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                      <path className={`${colors.blueText}`} strokeWidth="4" strokeDasharray={`${stats.medAdherence}, 100`} stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                    </svg>
+                    <span className={`absolute text-lg font-bold ${colors.textStrong}`}>{stats.medAdherence}%</span>
+                  </div>
+                </Card>
+
+                <Card colors={colors} className="flex flex-col justify-center items-center text-center p-6 gap-2">
+                  <Moon className="text-indigo-400" size={28} />
+                  <p className={`text-sm ${colors.textLight}`}>Média de Sono</p>
+                  <p className={`text-3xl font-bold ${colors.indigoText} mt-2`}>{stats.avgSleep}<span className="text-lg text-indigo-400 font-medium">h</span></p>
+                </Card>
+
+                <Card colors={colors} className={`col-span-2 ${colors.purpleCard}`}>
+                  <h3 className={`font-semibold ${colors.text} mb-4 flex items-center gap-2`}><Briefcase size={18} className={colors.purpleText}/> Trabalho Total</h3>
+                  <div className={`${colors.translucent} p-4 rounded-2xl flex items-center justify-between shadow-sm`}>
+                    <span className={`font-medium ${colors.textLight}`}>Horas trabalhadas:</span>
+                    <span className={`text-xl font-bold ${colors.purpleText}`}>{Math.floor(stats.totalWorkMins/60)}h {stats.totalWorkMins%60}m</span>
+                  </div>
+                </Card>
+
+                <Card colors={colors} className="col-span-2">
+                  <h3 className={`font-semibold ${colors.text} mb-4 flex items-center gap-2`}><Activity size={18}/> Esforço Físico</h3>
+                  <div className={`flex items-center gap-4 ${colors.surface} p-4 rounded-2xl`}>
+                    <div className="flex-1">
+                      <p className={`text-xs ${colors.textLight} mb-1`}>Tempo Total</p>
+                      <p className={`text-xl font-bold ${colors.accentText}`}>{stats.totalExMins} <span className="text-sm font-normal">min</span></p>
+                    </div>
+                    <div className={`w-px h-10 ${colors.surfaceAlt}`}></div>
+                    <div className="flex-1">
+                      <p className={`text-xs ${colors.textLight} mb-1`}>Calorias Gastas</p>
+                      <p className={`text-xl font-bold text-orange-500`}>{stats.totalExCals} <span className="text-sm font-normal">kcal</span></p>
+                    </div>
+                  </div>
+                </Card>
+
+                <Card colors={colors} className="col-span-2">
+                  <h3 className={`font-semibold ${colors.text} mb-4 flex items-center gap-2`}><Coffee size={18}/> Tempo de Hobby</h3>
+                  <div className={`${colors.primary} bg-opacity-30 p-4 rounded-2xl flex items-center justify-between`}>
+                    <span className={`font-medium ${colors.primaryText}`}>Total dedicado a si:</span>
+                    <span className={`text-xl font-bold ${colors.primaryText}`}>{Math.floor(stats.totalHobbyMins/60)}h {stats.totalHobbyMins%60}m</span>
+                  </div>
+                </Card>
+              </div>
+            </div>
+          )}
+
+          {/* ================= ABA CALENDÁRIO ================= */}
+          {activeTab === 'calendar' && (
+            <div className="space-y-6 animate-in fade-in duration-300">
+              <h1 className={`text-3xl font-bold ${colors.text} font-serif mb-6`}>O meu Histórico</h1>
+              
+              <Card colors={colors} className="p-4">
+                <div className="flex justify-between items-center mb-6">
+                  <button onClick={handlePrevMonth} className={`p-2 ${colors.surface} rounded-full ${colors.surfaceHover} ${colors.text} transition-colors`}>
+                    <ChevronLeft size={20} />
+                  </button>
+                  <h2 className={`text-lg font-bold ${colors.textStrong}`}>
+                    {MONTHS[currentMonthIndex]} {currentYear}
+                  </h2>
+                  <button onClick={handleNextMonth} className={`p-2 ${colors.surface} rounded-full ${colors.surfaceHover} ${colors.text} transition-colors`}>
+                    <ChevronRight size={20} />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-7 gap-y-2 mb-2 text-center">
+                  {WEEKDAYS.map(day => (
+                    <div key={day} className={`text-xs font-semibold ${colors.textLight} py-2`}>
+                      {day}
+                    </div>
+                  ))}
+                  
+                  {blanks.map(blank => (
+                    <div key={`blank-${blank}`} className="w-10 h-10" />
+                  ))}
+                  
+                  {monthDays.map(day => {
+                    const dateStr = `${currentYear}-${String(currentMonthIndex + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                    const dayLog = logs[dateStr];
+                    const hasData = dayLog && (
+                      (dayLog.moods && dayLog.moods.length > 0) || 
+                      (dayLog.sleep && dayLog.sleep.hours > 0) ||
+                      (dayLog.exercises && dayLog.exercises.length > 0) ||
+                      (dayLog.hobbies && dayLog.hobbies.length > 0) ||
+                      (dayLog.work && dayLog.work.entry) ||
+                      (dayLog.meds && Object.values(dayLog.meds).some(v => v === true))
+                    );
+                    const isSelected = selectedHistoryDate === dateStr;
+                    const isToday = dateStr === getTodayStr();
+
+                    return (
+                      <button 
+                        key={day}
+                        onClick={() => setSelectedHistoryDate(dateStr)}
+                        className={`w-10 h-10 mx-auto flex flex-col items-center justify-center rounded-2xl transition-all relative
+                          ${isSelected ? `${colors.primary} ${colors.primaryText} font-bold shadow-sm ring-2 ring-offset-2 ring-[#4A6B5D]` 
+                                       : `${colors.text} ${colors.surfaceHover} ${isToday ? `${colors.surfaceAlt} font-bold` : ''}`}
+                        `}
+                      >
+                        {day}
+                        {hasData && (
+                          <span className={`w-1.5 h-1.5 rounded-full mt-1 ${isSelected ? 'bg-[#4A6B5D]' : 'bg-[#4A6B5D] opacity-60'}`} />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </Card>
+
+              <div className="mt-8 animate-in slide-in-from-bottom-4">
+                <h3 className={`text-lg font-semibold ${colors.text} mb-4 flex items-center gap-2`}>
+                  <CalendarDays size={20} className={colors.textLight} />
+                  Resumo do dia {selectedHistoryDate.split('-')[2]}/{selectedHistoryDate.split('-')[1]}
+                </h3>
+
+                {logs[selectedHistoryDate] && (
+                  (logs[selectedHistoryDate].moods?.length > 0 || 
+                   logs[selectedHistoryDate].sleep?.hours > 0 || 
+                   logs[selectedHistoryDate].exercises?.length > 0 || 
+                   logs[selectedHistoryDate].work || 
+                   logs[selectedHistoryDate].hobbies?.length > 0)
+                ) ? (
+                  <div className="space-y-4">
+                    
+                    {logs[selectedHistoryDate].moods?.length > 0 && (
+                      <Card colors={colors} className={`p-4 ${colors.surface}`}>
+                         <div className="flex items-center gap-2 mb-3">
+                          <Heart className={colors.accentText} size={18} />
+                          <h4 className={`font-semibold text-sm ${colors.textStrong}`}>Humor Registrado</h4>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {logs[selectedHistoryDate].moods.map((m, i) => {
+                            const moodData = MOODS.find(x => x.id === m.mood);
+                            return (
+                              <div key={i} className={`flex items-center gap-1 ${colors.card} px-3 py-1.5 rounded-full text-sm shadow-sm border ${colors.border}`}>
+                                <span className={moodData.color}>{moodData.icon}</span>
+                                <span className={`font-medium ${colors.textLight}`}>{m.time}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </Card>
+                    )}
+
+                    {logs[selectedHistoryDate].work && (
+                      <Card colors={colors} className={`p-4 ${colors.purpleCard}`}>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Briefcase className={colors.purpleText} size={18} />
+                          <h4 className={`font-semibold text-sm ${colors.purpleText}`}>Trabalho</h4>
+                        </div>
+                        <div className={`flex justify-between items-center ${colors.card} p-3 rounded-xl shadow-sm border ${colors.border}`}>
+                          <span className={`font-bold ${colors.textStrong}`}>{logs[selectedHistoryDate].work.entry} - {logs[selectedHistoryDate].work.exit}</span>
+                          <span className={`${MOODS.find(m => m.id === logs[selectedHistoryDate].work.mood)?.color}`}>
+                            {MOODS.find(m => m.id === logs[selectedHistoryDate].work.mood)?.icon}
+                          </span>
+                        </div>
+                      </Card>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-4">
+                      {logs[selectedHistoryDate].sleep?.hours > 0 && (
+                        <Card colors={colors} className={`p-4 ${colors.indigoCard}`}>
+                          <div className="flex items-center gap-2 mb-1">
+                            <Moon className="text-indigo-400" size={18} />
+                            <h4 className={`font-semibold text-sm ${colors.indigoText}`}>Sono</h4>
+                          </div>
+                          <p className={`text-xl font-bold ${colors.indigoText}`}>
+                            {Number(logs[selectedHistoryDate].sleep.hours).toFixed(1).replace('.0', '')}h
+                          </p>
+                          {logs[selectedHistoryDate].sleep.quality && (
+                            <p className="text-xs text-indigo-400 mt-1">
+                              {SLEEP_QUALITIES.find(q => q.id === logs[selectedHistoryDate].sleep.quality)?.label}
+                            </p>
+                          )}
+                        </Card>
+                      )}
+
+                      <Card colors={colors} className={`p-4 ${colors.blueCard}`}>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Pill className={colors.blueText} size={18} />
+                          <h4 className={`font-semibold text-sm ${colors.blueTextAlt}`}>Remédios</h4>
+                        </div>
+                        <div className="space-y-1">
+                          {medications.length === 0 ? (
+                             <p className={`text-xs ${colors.textLight}`}>Nenhum no momento.</p>
+                          ) : (
+                            medications.map(med => {
+                              const taken = logs[selectedHistoryDate].meds?.[med.id];
+                              return (
+                                <div key={med.id} className="flex items-center gap-1 text-xs">
+                                  {taken ? <Check size={14} className="text-green-500"/> : <X size={14} className={colors.iconMuted}/>}
+                                  <span className={taken ? colors.textStrong : `${colors.textLight} line-through`}>{med.name}</span>
+                                </div>
+                              )
+                            })
+                          )}
+                        </div>
+                      </Card>
+                    </div>
+
+                    {(logs[selectedHistoryDate].exercises?.length > 0 || logs[selectedHistoryDate].hobbies?.length > 0) && (
+                      <Card colors={colors} className={`p-4 ${colors.surface}`}>
+                        {logs[selectedHistoryDate].exercises?.length > 0 && (
+                          <div className="mb-4">
+                            <h4 className={`font-semibold text-sm ${colors.textStrong} flex items-center gap-2 mb-2`}>
+                              <Activity size={16} className={colors.accentText}/> Exercícios
+                            </h4>
+                            <div className="space-y-2">
+                              {logs[selectedHistoryDate].exercises.map((ex, i) => (
+                                <div key={i} className={`${colors.card} p-2 rounded-lg flex justify-between items-center text-xs shadow-sm border ${colors.border}`}>
+                                  <span className={`font-medium ${colors.textStrong}`}>{ex.type}</span>
+                                  <span className={colors.textMuted}>{ex.duration}m | {ex.calories}kcal</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {logs[selectedHistoryDate].hobbies?.length > 0 && (
+                          <div>
+                            <h4 className={`font-semibold text-sm ${colors.textStrong} flex items-center gap-2 mb-2`}>
+                              <Coffee size={16} className={colors.primaryText}/> Hobbies
+                            </h4>
+                            <div className="space-y-2">
+                              {logs[selectedHistoryDate].hobbies.map((hb, i) => (
+                                <div key={i} className={`${colors.card} p-2 rounded-lg flex justify-between items-center text-xs shadow-sm border ${colors.border}`}>
+                                  <span className={`font-medium ${colors.textStrong}`}>{hb.type}</span>
+                                  <span className={colors.textMuted}>{hb.duration}m</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </Card>
+                    )}
+
+                  </div>
+                ) : (
+                  <Card colors={colors} className={`flex flex-col items-center justify-center p-8 text-center ${colors.surface} border-dashed border-2 ${colors.border}`}>
+                    <Sun className={`${colors.iconMuted} mb-2`} size={40} />
+                    <p className={`${colors.textMuted} font-medium`}>Nenhum registo encontrado.</p>
+                    <p className={`text-xs ${colors.textLight} mt-1`}>Este dia foi calmo por aqui!</p>
+                  </Card>
+                )}
+              </div>
+            </div>
+          )}
+
+        </div>
+
+        {/* Sistema de Notificação */}
+        <div className="absolute top-4 left-0 right-0 px-4 z-50 flex flex-col gap-2 pointer-events-none max-w-md mx-auto">
+          {notifications.map(n => (
+            <div key={n.id} className={`${colors.notification} backdrop-blur-md shadow-lg p-4 rounded-2xl flex items-center justify-between animate-in slide-in-from-top pointer-events-auto border`}>
+              <div className="flex items-center gap-3">
+                <div className="bg-blue-100 text-blue-600 p-2 rounded-full"><Bell size={18}/></div>
+                <p className={`font-medium ${colors.textStrong}`}>{n.msg}</p>
+              </div>
+              <button onClick={() => setNotifications(prev => prev.filter(x => x.id !== n.id))} className={`${colors.textLight} hover:${colors.text}`}>
+                <X size={18}/>
+              </button>
+            </div>
+          ))}
+        </div>
+
+        {/* Barra Inferior */}
+        <div className={`absolute bottom-0 w-full ${colors.bottomNav} backdrop-blur-lg border-t px-6 py-4 pb-8 flex justify-around items-center transition-colors duration-500`}>
+          <button 
+            onClick={() => setActiveTab('home')}
+            className={`flex flex-col items-center gap-1 transition-colors ${activeTab === 'home' ? colors.primaryText : colors.textLight}`}
+          >
+            <div className={`p-2 rounded-2xl transition-all ${activeTab === 'home' ? colors.primary : 'bg-transparent'}`}>
+              <Home size={24} />
+            </div>
+            <span className="text-[10px] font-medium uppercase tracking-widest">Hoje</span>
+          </button>
+          
+          <button 
+            onClick={() => {
+              setActiveTab('calendar');
+              setSelectedHistoryDate(getTodayStr());
+            }}
+            className={`flex flex-col items-center gap-1 transition-colors ${activeTab === 'calendar' ? colors.primaryText : colors.textLight}`}
+          >
+            <div className={`p-2 rounded-2xl transition-all ${activeTab === 'calendar' ? colors.primary : 'bg-transparent'}`}>
+              <Calendar size={24} />
+            </div>
+            <span className="text-[10px] font-medium uppercase tracking-widest">Histórico</span>
+          </button>
+          
+          <button 
+            onClick={() => setActiveTab('stats')}
+            className={`flex flex-col items-center gap-1 transition-colors ${activeTab === 'stats' ? colors.primaryText : colors.textLight}`}
+          >
+            <div className={`p-2 rounded-2xl transition-all ${activeTab === 'stats' ? colors.primary : 'bg-transparent'}`}>
+              <BarChart3 size={24} />
+            </div>
+            <span className="text-[10px] font-medium uppercase tracking-widest">Estatísticas</span>
+          </button>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+
